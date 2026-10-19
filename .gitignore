@@ -1,0 +1,34 @@
+# secrets
+.env
+.env.*
+!.env.example
+
+# python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# web
+node_modules/
+web/dist/
+playwright-report/
+test-results/
+
+# claude code
+.claude/worktrees/
+.claude/settings.local.json
+
+# data
+*.dump
+data/dumps/
+
+# os / editors
+.DS_Store
+.Rhistory
