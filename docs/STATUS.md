@@ -6,14 +6,15 @@ Last updated: 2026-10-19 · by: Claude Code, Phase 0 session
 
 ## Done
 - Phase 0 proposal approved with changes (2026-10-19).
+- Step 1: ignore files, `.env.example`, CLAUDE.md, this file, `docs/ideas.md`,
+  decisions 0001–0006. Commit `79d788b`, pushed.
 
 ## In progress
-- Phase 0, step 1: ignore files, `.env.example`, CLAUDE.md, this file, `docs/ideas.md`,
-  decisions 0001–0006. Written, not committed.
+- Step 2: `.claude/` settings, commit-log hook, rules, skills, agents. Written, not committed.
+  Hook script tested with simulated input; the live test is the step 2 commit itself.
 
 ## Next
 - Step 0 (deferred): copy the approved proposal to `plans/phase-0-setup.md`.
-- Step 2: `.claude/` settings, commit-log hook, rules, skills, agents.
 - Steps 3–6: Python project + `/health`, web app, Compose + gate test, CI.
 - Step 7: Phase 0 gate (`make gate PHASE=0` + CI green on `main`, checked by the user
   on the Actions page).
