@@ -20,5 +20,5 @@ The price history lives in `price_bars`: 506 tickers, 2010-01-04 to 2026-09-08, 
   restore. Amazon RDS supports 16, so Phase 6 is unaffected.
 
 ## Consequences
-The exact tag (`16.14-bookworm`) is unverified until Docker is running; if it doesn't exist,
-the latest `16.x-bookworm` is used and noted here.
+The exact tag `postgres:16.14-bookworm` is confirmed (2026-10-20): Docker Hub's API returned
+HTTP 200 for it, and the container ran healthy in Phase 0 step 3.

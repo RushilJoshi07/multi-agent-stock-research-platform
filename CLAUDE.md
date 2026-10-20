@@ -20,8 +20,10 @@ Read this file, `docs/STATUS.md`, the current phase of `docs/plan.md`, and `git 
 - Do one numbered step at a time: show the files and results, then stop.
 - Check the real repo and data before stating anything as fact; otherwise say "unverified".
 - Working first: no polish, extra docs or new features until the core path works end to end.
-- After every working component: a step explainer. After every phase: a phase summary.
-  After every commit: a 3–6 line commit-log note (the hook writes the stub; you fill it in).
+- Step explainers (after every working component) and phase summaries (after every phase) are
+  written with the explanation-writer skill into `docs/explanations/phase-N/`.
+- The 3–6 line commit-log note goes in `docs/explanations/phase-N/commit-log.md` when the hook
+  asks (the hook writes the stub after each commit; you fill it in).
 - New ideas go to `docs/ideas.md` until v1 passes its gate.
 
 ## Sacred gates (tested, never assumed, never weakened)
@@ -41,7 +43,8 @@ Read this file, `docs/STATUS.md`, the current phase of `docs/plan.md`, and `git 
 - `/Users/rushil/agentic-finance-platform` is reference only. Read it; never modify it.
 
 ## Git
-- Commit and push only when the user says so.
+- When the user says commit, commit and then push in the same step (push after every commit).
+  Never commit or push without that instruction.
 - No Co-Authored-By or Claude-Session line in commit messages.
 - Update `docs/STATUS.md` at the end of every session.
 

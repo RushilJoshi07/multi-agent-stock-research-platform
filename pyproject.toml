@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fathom"
+version = "0.1.0"
+description = "Multi-agent stock research app"
+requires-python = ">=3.13,<3.14"
+# Exact pins. Packages the old project also uses are pinned to the version installed in its
+# venv, so imported code runs on the versions its tests passed with (docs/decisions/0003).
+dependencies = [
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.3",
+    "sqlalchemy==2.0.51",
+    "psycopg2-binary==2.9.12",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.2",
+    "redis==8.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest==9.1.1",
+    "httpx==0.28.1",
+    "pytest-socket==0.8.1",
+    "ruff==0.17.1",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+markers = [
+    "live: calls a real external API; never in CI, run only when asked",
+    "gate: phase gate test in tests/gates/, run with make gate PHASE=N",
+]
+# Network guard: tests may only reach localhost (see .claude/rules/testing-and-gates.md).
+addopts = "-m 'not gate and not live' --disable-socket --allow-unix-socket --allow-hosts=127.0.0.1,::1"
+
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
