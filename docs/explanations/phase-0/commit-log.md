@@ -15,3 +15,11 @@ Why: every session, including parallel worktrees, starts from the same rules and
 Non-obvious: commit and push are deliberately not auto-allowed, so each asks the user. The docs say
 path deny rules only apply to Edit/Read, so one Edit(//...) rule protects the old repo from writes.
 This commit was the hook's first live run, and it wrote this entry's stub itself.
+
+## a8f660e — Phase 0 step 3: FastAPI health check against real Postgres and Redis
+2026-10-20 · 22 files changed, 1687 insertions(+), 12 deletions(-)
+Added the Python project, GET /health (real SELECT version() and PING; 200, or 503 with the reason),
+the postgres and redis Compose services, and 7 tests against real services.
+Why: every later step needs a working app skeleton and a test setup that can't reach the old DB or the internet.
+Non-obvious: the PING proof uses a uniquely named Redis connection, because Docker's healthcheck
+pings the same server and a command counter can't tell the two apart.
