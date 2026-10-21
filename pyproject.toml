@@ -24,8 +24,13 @@ dev = [
     "pytest==9.1.1",
     "httpx==0.28.1",
     "pytest-socket==0.8.1",
-    "ruff==0.17.1",
+    "ruff==0.16.10",
 ]
+
+[tool.uv]
+# 14-day rule: lock only versions published on or before this date, including transitive ones.
+# Move it to (install date - 14 days) whenever dependencies change (docs/decisions/0007).
+exclude-newer = "2026-10-06T23:59:59Z"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -43,6 +48,8 @@ addopts = "-m 'not gate and not live' --disable-socket --allow-unix-socket --all
 [tool.ruff]
 line-length = 100
 target-version = "py313"
+# Python files only. Docs quote partial code lines in ```python blocks, which must not be reformatted.
+include = ["*.py", "*.pyi", "**/pyproject.toml"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP"]
