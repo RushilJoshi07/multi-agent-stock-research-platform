@@ -21,6 +21,8 @@
       "Bash(make test-web)",
       "Bash(make lint)",
       "Bash(make gate *)",
+      "Bash(make ps)",
+      "Bash(make logs)",
       "Bash(uv run pytest *)",
       "Bash(uv run ruff *)",
       "Bash(docker compose ps *)",

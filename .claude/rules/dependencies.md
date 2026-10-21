@@ -1,12 +1,15 @@
 # Dependencies
 
-Applies to: every Python and npm dependency, both lockfiles, and the Node runtime.
+Applies to: every Python and npm dependency, both lockfiles, the Node and Python runtimes, and uv.
 Decision and rejected alternatives: `docs/decisions/0007-dependency-age-14-days.md`.
 
 ## The 14-day rule
 - Every version must have been published at least 14 days (UTC) before the install date. That
-  covers direct dependencies, every package in `uv.lock` and `web/package-lock.json`, and the Node
-  runtime.
+  covers direct dependencies, every package in `uv.lock` and `web/package-lock.json`, the Node
+  runtime (`.nvmrc`, 24.21.0), the Python runtime (`.python-version`, 3.13.16) and uv itself
+  (0.12.23).
+- Runtimes and tools installed outside a package manager (Node, uv) come from the official release
+  archive with its published SHA-256 checked, never from a `curl | sh` installer.
 - If the newest version is younger than that, take the latest older one and say so.
 - Every proposal shows the publish date next to each pin.
 - A security fix younger than 14 days needs an explicit exception from the user, recorded in

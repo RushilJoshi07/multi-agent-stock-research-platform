@@ -30,3 +30,12 @@ Session handoff: STATUS.md now records step 3 as done and step 4 as next, with s
 deselection check and the open question of whether the project skills load in a new session.
 Why: STATUS.md is the single source of truth a new session starts from.
 Non-obvious: this note is committed alone, as the first real test of the hook's docs-only skip.
+
+## b8655b2 — Phase 0 step 4: empty React app and the 14-day dependency rule
+2026-10-21 · 22 files changed, 3612 insertions(+), 81 deletions(-)
+Added the empty React app (health status via the Vite proxy, 5 Vitest cases) and the 14-day rule
+for every dependency, both lockfiles and the Node runtime.
+Why: new releases carry the most risk, and most poisoned ones land in transitive packages.
+Non-obvious: ruff 0.16.10 would have rewritten the explainers' partial-line ```python examples
+into wrong code, so ruff now checks Python files only. Node 24.21.0 comes from the official
+tarball because Homebrew only offers 24.22.0, which is too new.

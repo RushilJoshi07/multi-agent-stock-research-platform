@@ -15,24 +15,28 @@ Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
   Commit `a8f660e`, pushed. Verified: 7 passed, ruff check and format clean, guard stopped
   three bad `DATABASE_URL_TEST` values. Explainers: `step-01-claude-code-setup.md`,
   `step-03-health-check.md`.
+- Step 4: empty React app in `web/` plus the 14-day dependency rule (decision 0007,
+  `.claude/rules/dependencies.md`, `scripts/check_dependency_age.py`). Commit `b8655b2`, pushed.
+  Lint, typecheck, 5 Vitest tests and build pass on Node 24.21.0; both lockfiles within the
+  2026-10-06T23:59:59Z cutoff; `/api/health` 200 through the Vite proxy; page checked by hand in
+  a browser once.
 
 ## In progress
-- Step 4: empty React app in `web/` plus the 14-day dependency rule (decision 0007,
-  `.claude/rules/dependencies.md`, `scripts/check_dependency_age.py`). Built and checked, not
-  committed: lint, typecheck, 5 Vitest tests and build pass on Node 24.21.0. Both lockfiles are
-  within the 2026-10-06T23:59:59Z cutoff. `/api/health` returns 200 through the Vite proxy with
-  uvicorn on 8001. ruff downgraded to 0.16.10 and limited to Python files.
+- Step 5: built and checked, not committed.
+  - uv 0.12.23 from the GitHub release archive (Homebrew's 0.13.4 uninstalled).
+  - Python 3.13.16 everywhere; the rule now covers uv and the Python runtime.
+  - api and web Dockerfiles and Compose services; Makefile; Phase 0 gate test plus the
+    deselection check.
+  - `make gate PHASE=0`: 6 passed, "6 gate tests ran, 0 deselected, 0 skipped". Run without
+    `-m gate`, or with `-m "gate and not gate"`, it fails with exit 1.
+  - `make test` (7), `make test-web` (5) and `make lint` pass.
 
 ## Next
-- Step 5: `api` and `web` services in `compose.yaml`, Dockerfiles, Makefile (`make up`), Phase 0
-  gate test. No `~/.aws` mount until Phase 3. Node image `node:24.21.0-bookworm-slim`; the web
-  container must run Vite with `--host` (it listens on localhost only by default) and set
-  `API_PROXY_TARGET=http://api:8000` and `WEB_PORT=5173`. Makefile npm targets use
-  `NODE24_BIN` (default `$HOME/.local/node/v24.21.0/bin`). The gate run must show the gate tests actually ran
-  and weren't deselected: `addopts` has `-m 'not gate and not live'`, and we rely on a later
-  `-m gate` overriding it.
+- Step 5 explainer, then commit.
 - Step 6: CI. Look up current action major versions; service containers on 5433/6380; update
-  decision 0005's CI line.
+  decision 0005's CI line. Pin `setup-uv` to uv 0.12.23; Python from `.python-version`
+  (3.13.16). Add a separate CI job that runs `scripts/check_dependency_age.py`,
+  apart from the test jobs, so pytest-socket stays in force for tests.
 - Step 7: Phase 0 gate (`make gate PHASE=0` + CI green on `main`, checked by the user
   on the Actions page).
 
@@ -48,6 +52,14 @@ Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
   worktrees both commit. Decide the fix (e.g. one log file per commit) before the first
   parallel split in Phase 1.
 - arq's maintenance status is unverified. Check before Phase 4 starts and report.
+- `make up` uses `--renew-anon-volumes`, so web always gets a fresh `node_modules` from its image.
+  Side effects:
+  - every `make up` recreates all four containers (data stays in the named volumes; `fathom_test`
+    checked after a run);
+  - each run leaves the previous anonymous volume behind, about 137 MB.
+  Two are dangling now. Deleting them, and adding a cleanup step, needs the user's OK.
+- Phase 6 decision: pin Docker images by digest (`image@sha256:...`). Tags such as
+  `postgres:16.14-bookworm` can be re-pushed by Docker Hub, so a tag isn't immutable.
 - `plansDirectory` support in Claude Code 2.1.281 is unverified. In this session the plan file
   stayed at `~/.claude/plans/pasted-content-id-5a72-we-re-starting-reactive-dijkstra.md` and
   `plans/` was never created; that file existed before the setting, so this doesn't settle it.
@@ -68,14 +80,17 @@ Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
   files instead. Unverified whether a new session loads them. Check at the next session start.
 - The 5432 guard in `tests/conftest.py` covers `DATABASE_URL_TEST` only, not the app's own
   `DATABASE_URL`. If `.env` pointed `DATABASE_URL` at port 5432, the running API would connect to
-  the old database. Close before Phase 1's restore.
+  the old database. Close before Phase 1's restore. Inside Docker the API legitimately connects
+  to `postgres:5432`, so the guard must check host and port together, not port alone.
 - Tests print a `StarletteDeprecationWarning`: Starlette's test client wants `httpx2` instead of
   `httpx`. Tests pass; not acted on (it would add a dependency). Decide before it becomes an error.
 
 ## Servers currently up
-- Fathom Postgres (`postgres:16.14-bookworm`) on 127.0.0.1:5433, healthy.
-- Fathom Redis (`redis:7.4.11-alpine`) on 127.0.0.1:6380, healthy.
-  Both checked with `docker compose ps` at handoff (up about 2 hours). Left running.
-- Vite dev server (`npm run dev`, Node 24.21.0) on localhost:5174, proxying `/api` to 8001.
-- uvicorn (`api.main:app`) on 127.0.0.1:8001, using `DATABASE_URL`'s default (`fathom` on 5433).
+The full Compose stack, started with `make up` (checked with `make ps`, all healthy):
+- postgres (`postgres:16.14-bookworm`) on 127.0.0.1:5433
+- redis (`redis:7.4.11-alpine`) on 127.0.0.1:6380
+- api (`fathom-api`: uvicorn with reload, Python 3.13.16) on 127.0.0.1:8001
+- web (`fathom-web`: Vite, Node 24.21.0) on 127.0.0.1:5174
+
+The local uvicorn and Vite from step 4 were stopped.
 - The old project's Postgres (5432) and API (8000) were not touched by Fathom.

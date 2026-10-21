@@ -1,5 +1,6 @@
-# Fathom local stack. Host ports are the old project's plus one, so both can run at once
-# (docs/decisions/0005). Step 3 adds postgres and redis; api and web come in step 5.
+# Fathom local stack: `make up` starts all four services and waits until each is healthy.
+# Host ports are the old project's plus one, so both can run at once (docs/decisions/0005).
+# Every port is published on 127.0.0.1 only.
 name: fathom
 
 services:
@@ -32,6 +33,60 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/api.Dockerfile
+    environment:
+      # Inside Docker the services are reached by name on their standard ports.
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fathom}:${POSTGRES_PASSWORD:-change-me-local}@postgres:5432/${POSTGRES_DB:-fathom}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "127.0.0.1:${API_HOST_PORT:-8001}:8000"
+    volumes:
+      - ./src:/app/src
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      # Healthy only when /health is 200, i.e. the API can reach Postgres and Redis.
+      test:
+        - CMD
+        - python
+        - -c
+        - "import sys, urllib.request; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).status == 200 else 1)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+    environment:
+      API_PROXY_TARGET: http://api:8000
+      WEB_PORT: "5173"
+    ports:
+      - "127.0.0.1:${WEB_HOST_PORT:-5174}:5173"
+    volumes:
+      - ./web:/app
+      - /app/node_modules
+    depends_on:
+      # Started, not healthy: the page should still load and say "API unreachable" if the API is down.
+      api:
+        condition: service_started
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:5173/').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 12
 
 volumes:
   fathom_pgdata:

@@ -57,8 +57,11 @@ Read this file, `docs/STATUS.md`, the current phase of `docs/plan.md`, and `git 
 - After editing code, restart the affected servers before verifying.
 - Leave dev servers running unless told otherwise, and say which ones are up.
 
-## How to run (available once Phase 0 is built)
-- Start everything: `make up` (`docker compose up -d --build --wait`)
+## How to run
+- Tools: Node 24.21.0 and uv 0.12.23 are installed from official release archives into
+  `~/.local/` (decisions 0003, 0007). The Makefile finds them through `NODE24_BIN` and `UV_BIN`.
+- Start everything: `make up` (`docker compose up -d --build --wait`). Stop: `make down`.
+  Status and logs: `make ps`, `make logs`.
 - Host ports: Postgres 5433 · Redis 6380 · API 8001 · Web 5174
   (the old project uses 5432 / 8000 / 5173, so both can run at once)
 - Health: `curl localhost:8001/health`

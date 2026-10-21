@@ -19,3 +19,12 @@ pieces (e.g. pandas 3.0.3, pandas-ta 0.4.71b0, numba 0.61.2, scipy 1.18.0, SQLAl
 
 ## Consequences
 `brew install uv` is needed locally (approved for build step 3).
+
+Update 2026-10-21: uv itself is now pinned to **0.12.23** (published 2026-10-03) under the 14-day rule
+([0007](0007-dependency-age-14-days.md)). Homebrew had installed 0.13.4, published 2026-10-20, a day
+before the check. Homebrew only offers the newest version, so uv 0.12.23 is installed from the
+official GitHub release archive, its SHA-256 checked against both the release's `.sha256` file and
+GitHub's asset digest, into `~/.local/uv/0.12.23/`, with symlinks in `~/.local/bin` (appended to PATH
+in `~/.zprofile`). Homebrew's uv was uninstalled, so only one uv exists. uv 0.12.23 reads the
+existing `uv.lock` unchanged (`uv lock --check` passes). The Docker image uses
+`ghcr.io/astral-sh/uv:0.12.23`, and CI pins `setup-uv` to 0.12.23 (step 6).

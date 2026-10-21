@@ -38,3 +38,5 @@ land in transitive packages, the ones a lockfile resolves underneath. Before thi
   `~/.local/node/v24.21.0/`.
 - Several npm pins sit one patch or minor version behind the newest.
 - A security fix younger than 14 days needs an explicit, recorded exception.
+- Update 2026-10-21: the rule also covers the Python runtime (3.13.16, see
+  [0001](0001-python-3.13.md)) and uv itself (0.12.23, see [0003](0003-uv-lockfile.md)).
