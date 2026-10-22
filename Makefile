@@ -9,9 +9,11 @@ NPM := cd web && PATH="$(NODE24_BIN):$$PATH" npm
 .PHONY: up down ps logs test test-web lint gate
 
 # Start Postgres, Redis, the API and the web app; return once all four are healthy.
-# --renew-anon-volumes: give web a fresh node_modules volume from the image, not the old one.
+# BUILDX_NO_DEFAULT_ATTESTATIONS=1: the default build-provenance attestation records the build
+# time, so every build got a new image ID and Compose recreated api and web even when nothing
+# had changed. Without it, an unchanged build keeps its ID and the containers keep running.
 up:
-	docker compose up -d --build --wait --renew-anon-volumes
+	BUILDX_NO_DEFAULT_ATTESTATIONS=1 docker compose up -d --build --wait
 
 # Stop and remove the containers. Never -v: deleting volumes deletes data (ask first).
 down:

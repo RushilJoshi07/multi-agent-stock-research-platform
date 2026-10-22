@@ -39,3 +39,12 @@ Why: new releases carry the most risk, and most poisoned ones land in transitive
 Non-obvious: ruff 0.16.10 would have rewritten the explainers' partial-line ```python examples
 into wrong code, so ruff now checks Python files only. Node 24.21.0 comes from the official
 tarball because Homebrew only offers 24.22.0, which is too new.
+
+## b2cdaa9 — Phase 0 step 5: full Compose stack, Makefile and the Phase 0 gate test
+2026-10-21 · 17 files changed, 776 insertions(+), 27 deletions(-)
+Added the api and web containers, the Makefile and the Phase 0 gate test (6 passed), and pinned
+uv 0.12.23 and Python 3.13.16 under the 14-day rule.
+Why: Phase 0's "done when" is one command starting everything with a green health check.
+Non-obvious: tests/gates/conftest.py fails a gate run whose tests were deselected, because
+pyproject's addopts deselects gate tests by default. --renew-anon-volumes recreates every
+container on each make up and leaves the old node_modules volume behind (about 137 MB each).

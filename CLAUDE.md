@@ -40,6 +40,7 @@ Read this file, `docs/STATUS.md`, the current phase of `docs/plan.md`, and `git 
 ## Money and data safety
 - Ask before anything that spends money (one AI run batch over $1, any paid API) or deletes
   data (dropping tables, `docker compose down -v`, deleting dumps).
+- Ask before pulling any Docker image that isn't already in `compose.yaml` or a Dockerfile.
 - `/Users/rushil/agentic-finance-platform` is reference only. Read it; never modify it.
 
 ## Git

@@ -1,7 +1,9 @@
 # Keep secrets, local environments and build output out of every image.
-.env
-.env.*
-!.env.example
+# Patterns match from the build-context root, so **/ is needed to catch .env files in
+# subfolders too (Vite reads web/.env, and web.Dockerfile copies web/).
+**/.env
+**/.env.*
+!**/.env.example
 .git
 .venv
 .pytest_cache

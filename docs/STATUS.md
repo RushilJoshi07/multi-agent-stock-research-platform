@@ -1,6 +1,6 @@
 # Fathom status
 
-Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
+Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
 
 **Current phase:** 0 — Setup
 
@@ -21,18 +21,21 @@ Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
   2026-10-06T23:59:59Z cutoff; `/api/health` 200 through the Vite proxy; page checked by hand in
   a browser once.
 
+- Step 5: full Compose stack, Makefile, Phase 0 gate test with the deselection check, uv 0.12.23
+  and Python 3.13.16. Commit `b2cdaa9`, pushed. `make gate PHASE=0`: 6 passed, "6 gate tests ran,
+  0 deselected, 0 skipped".
+- Step 5 follow-up:
+  - the web container bind-mounts only `web/src` and `web/index.html`, with `node_modules` and
+    config in the image;
+  - `make up` sets `BUILDX_NO_DEFAULT_ATTESTATIONS=1`, so a second `make up` recreates nothing;
+  - `.dockerignore` excludes `.env` files at any depth;
+  - the leftover anonymous volumes and the `alpine:3.22` image were deleted;
+  - the step 5 explainer, and the CLAUDE.md image-pull rule.
+
 ## In progress
-- Step 5: built and checked, not committed.
-  - uv 0.12.23 from the GitHub release archive (Homebrew's 0.13.4 uninstalled).
-  - Python 3.13.16 everywhere; the rule now covers uv and the Python runtime.
-  - api and web Dockerfiles and Compose services; Makefile; Phase 0 gate test plus the
-    deselection check.
-  - `make gate PHASE=0`: 6 passed, "6 gate tests ran, 0 deselected, 0 skipped". Run without
-    `-m gate`, or with `-m "gate and not gate"`, it fails with exit 1.
-  - `make test` (7), `make test-web` (5) and `make lint` pass.
+- Nothing.
 
 ## Next
-- Step 5 explainer, then commit.
 - Step 6: CI. Look up current action major versions; service containers on 5433/6380; update
   decision 0005's CI line. Pin `setup-uv` to uv 0.12.23; Python from `.python-version`
   (3.13.16). Add a separate CI job that runs `scripts/check_dependency_age.py`,
@@ -52,12 +55,11 @@ Last updated: 2026-10-21 · by: Claude Code, Phase 0 session
   worktrees both commit. Decide the fix (e.g. one log file per commit) before the first
   parallel split in Phase 1.
 - arq's maintenance status is unverified. Check before Phase 4 starts and report.
-- `make up` uses `--renew-anon-volumes`, so web always gets a fresh `node_modules` from its image.
-  Side effects:
-  - every `make up` recreates all four containers (data stays in the named volumes; `fathom_test`
-    checked after a run);
-  - each run leaves the previous anonymous volume behind, about 137 MB.
-  Two are dangling now. Deleting them, and adding a cleanup step, needs the user's OK.
+- The web container bind-mounts the single file `web/index.html`. Editors that save by writing a
+  new file and renaming it replace the file on the Mac, but the container keeps seeing the old
+  one until `make up` or a restart. `web/src` is a directory mount and isn't affected.
+- Phase 6: production images keep build attestations (provenance). `BUILDX_NO_DEFAULT_ATTESTATIONS=1`
+  in `make up` is for local development images only.
 - Phase 6 decision: pin Docker images by digest (`image@sha256:...`). Tags such as
   `postgres:16.14-bookworm` can be re-pushed by Docker Hub, so a tag isn't immutable.
 - `plansDirectory` support in Claude Code 2.1.281 is unverified. In this session the plan file

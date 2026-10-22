@@ -72,8 +72,9 @@ services:
     ports:
       - "127.0.0.1:${WEB_HOST_PORT:-5174}:5173"
     volumes:
-      - ./web:/app
-      - /app/node_modules
+      # Only what Vite needs live. node_modules and the config files stay in the image.
+      - ./web/src:/app/src
+      - ./web/index.html:/app/index.html
     depends_on:
       # Started, not healthy: the page should still load and say "API unreachable" if the API is down.
       api:
