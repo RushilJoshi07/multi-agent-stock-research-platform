@@ -48,3 +48,12 @@ Why: Phase 0's "done when" is one command starting everything with a green healt
 Non-obvious: tests/gates/conftest.py fails a gate run whose tests were deselected, because
 pyproject's addopts deselects gate tests by default. --renew-anon-volumes recreates every
 container on each make up and leaves the old node_modules volume behind (about 137 MB each).
+
+## 6578dd5 — Phase 0 step 5 follow-up: web mounts, stable image IDs, .env exclusion
+2026-10-22 · 8 files changed, 535 insertions(+), 25 deletions(-)
+Web now mounts only src/ and index.html, with node_modules and config in the image; make up turns off
+default build attestations; .dockerignore excludes .env at any depth.
+Why: the anonymous-volume design either kept stale packages or recreated every container and leaked a
+volume per run, and a web/.env could have been baked into the image.
+Non-obvious: every build layer was CACHED yet the image ID still changed, because the provenance
+attestation records the build time; provenance: false in compose.yaml had no effect, the env var did.
