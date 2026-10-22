@@ -65,3 +65,11 @@ Why: once a real .env exists, true would load every secret into every VS Code te
 around the Read(**/.env) deny rule.
 Non-obvious: the file appeared on its own (most likely VS Code's Python extension) with the unsafe
 value; committing the safe value gives every clone and worktree the same setting.
+
+## 200a082 — Session handoff after Phase 0 step 5
+2026-10-22 · 2 files changed, 30 insertions(+), 9 deletions(-)
+Session handoff: STATUS.md records steps 1–5 as done, and step 6 (CI) as next with its requirements:
+setup-uv 0.12.23, Python and Node from their version files, service containers on 5433 and 6380,
+and the separate dependency-age job.
+Why: STATUS.md is what the next session starts from.
+Non-obvious: this note is committed alone, so the hook's docs-only skip should write no new stub.
