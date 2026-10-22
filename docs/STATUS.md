@@ -20,7 +20,6 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   Lint, typecheck, 5 Vitest tests and build pass on Node 24.21.0; both lockfiles within the
   2026-10-06T23:59:59Z cutoff; `/api/health` 200 through the Vite proxy; page checked by hand in
   a browser once.
-
 - Step 5: full Compose stack, Makefile, Phase 0 gate test with the deselection check, uv 0.12.23
   and Python 3.13.16. Commit `b2cdaa9`, pushed. `make gate PHASE=0`: 6 passed, "6 gate tests ran,
   0 deselected, 0 skipped".
@@ -32,14 +31,28 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   - the leftover anonymous volumes and the `alpine:3.22` image were deleted;
   - the step 5 explainer, and the CLAUDE.md image-pull rule.
 
+  Commit `6578dd5`, pushed.
+- `.vscode/settings.json` committed with `python.terminal.useEnvFile: false`, so VS Code terminals
+  never load `.env`. Commit `4aa17d5`, pushed.
+
 ## In progress
-- Nothing.
+- Nothing. Session handed off after step 5.
 
 ## Next
-- Step 6: CI. Look up current action major versions; service containers on 5433/6380; update
-  decision 0005's CI line. Pin `setup-uv` to uv 0.12.23; Python from `.python-version`
-  (3.13.16). Add a separate CI job that runs `scripts/check_dependency_age.py`,
-  apart from the test jobs, so pytest-socket stays in force for tests.
+- **Step 6: CI** (`.github/workflows/ci.yml`). Approach first; no code before approval.
+  - Look up the current major versions of the GitHub actions; don't use remembered ones.
+  - **backend job:**
+    - uv pinned to 0.12.23 through `setup-uv`;
+    - Python from `.python-version` (3.13.16);
+    - Postgres (`postgres:16.14-bookworm`) and Redis (`redis:7.4.11-alpine`) as service
+      containers mapped to host ports 5433 and 6380, so the 5432 guard needs no CI exception;
+    - `uv sync --locked`, ruff check and format, then `pytest -m "not gate and not live"` with
+      pytest-socket.
+  - **web job:** Node from `.nvmrc` (24.21.0), `npm ci`, then lint, typecheck, test and build.
+  - **dependency-age job:** a separate job that runs `scripts/check_dependency_age.py`, apart from
+    the test jobs, so pytest-socket stays in force for tests.
+  - No secrets; nothing in CI calls Bedrock, Finnhub, Alpaca or any paid API.
+  - Update decision 0005's CI line, which still says CI uses the standard ports.
 - Step 7: Phase 0 gate (`make gate PHASE=0` + CI green on `main`, checked by the user
   on the Actions page).
 
@@ -88,11 +101,11 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   `httpx`. Tests pass; not acted on (it would add a dependency). Decide before it becomes an error.
 
 ## Servers currently up
-The full Compose stack, started with `make up` (checked with `make ps`, all healthy):
+The full Compose stack (checked with `make ps` at handoff on 2026-10-22, all healthy, up about
+23 hours), left running:
 - postgres (`postgres:16.14-bookworm`) on 127.0.0.1:5433
 - redis (`redis:7.4.11-alpine`) on 127.0.0.1:6380
 - api (`fathom-api`: uvicorn with reload, Python 3.13.16) on 127.0.0.1:8001
 - web (`fathom-web`: Vite, Node 24.21.0) on 127.0.0.1:5174
 
-The local uvicorn and Vite from step 4 were stopped.
-- The old project's Postgres (5432) and API (8000) were not touched by Fathom.
+The old project's Postgres (5432) and API (8000) were not touched by Fathom.

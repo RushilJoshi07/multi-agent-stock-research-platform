@@ -57,3 +57,11 @@ Why: the anonymous-volume design either kept stale packages or recreated every c
 volume per run, and a web/.env could have been baked into the image.
 Non-obvious: every build layer was CACHED yet the image ID still changed, because the provenance
 attestation records the build time; provenance: false in compose.yaml had no effect, the env var did.
+
+## 4aa17d5 — Keep .env out of VS Code terminals (python.terminal.useEnvFile: false)
+2026-10-22 · 2 files changed, 12 insertions(+)
+Committed .vscode/settings.json with python.terminal.useEnvFile set to false.
+Why: once a real .env exists, true would load every secret into every VS Code terminal, getting
+around the Read(**/.env) deny rule.
+Non-obvious: the file appeared on its own (most likely VS Code's Python extension) with the unsafe
+value; committing the safe value gives every clone and worktree the same setting.
