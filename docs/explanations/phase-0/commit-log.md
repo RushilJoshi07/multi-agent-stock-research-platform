@@ -83,3 +83,12 @@ Non-obvious: actions are pinned to commit SHAs under the 14-day rule (setup-uv v
 v7.0.0, not the newest); fathom_test comes from POSTGRES_DB because service containers can't mount
 the init script; Claude's push was rejected because the PAT lacked the workflow scope, so the user
 pushed it with a new token that has it. The first CI run passed (all three jobs).
+
+## 1145998 — Phase 0 closing commit: gate passed, cold start, summary
+2026-10-24 · 6 files changed, 690 insertions(+), 24 deletions(-)
+Recorded the Phase 0 gate as PASS in STATUS.md, added the step 6 explainer and the Phase 0 summary,
+and tightened testing-and-gates.md ("No network in tests") and the phase-gate skill's CI step.
+Why: Phase 1 starts only after the gate result and its raw evidence are recorded.
+Non-obvious: the first gate run was on a stack up for days, so the volumes were deleted (after
+read-only checks found no tables; approved once, the last cheap moment before Phase 1's restore)
+and the gate re-run from empty; the Postgres log shows the init script recreating fathom_test.

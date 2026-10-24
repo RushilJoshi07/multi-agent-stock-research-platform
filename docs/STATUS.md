@@ -1,8 +1,8 @@
 # Fathom status
 
-Last updated: 2026-10-24 · by: Claude Code, Phase 0 session
+Last updated: 2026-10-24 · by: Claude Code, Phase 0 session (handoff after the Phase 0 gate)
 
-**Current phase:** 0 — Setup. Gate passed 2026-10-24; Phase 1 is next.
+**Current phase:** 1 — Import the foundations. (Phase 0 gate passed 2026-10-24.)
 
 ## Done
 - Phase 0 proposal approved with changes (2026-10-19).
@@ -39,17 +39,42 @@ Last updated: 2026-10-24 · by: Claude Code, Phase 0 session
   v10.2.0, setup-node v7.0.0). The 14-day rule now covers GitHub Actions; decision 0005's CI line
   updated. Commit `4c3aa31`, pushed by the user with a token that has the `workflow` scope
   (Claude's push was rejected without it). First CI run green.
-- Step 7: Phase 0 gate passed (see Gate results).
+- Step 7: Phase 0 gate passed (see Gate results), including a cold start from empty volumes.
+  Step 6 explainer and Phase 0 summary written with the explanation-writer skill. Closing commit
+  `1145998`, pushed.
 
 ## In progress
-- Uncommitted, to ship with the next commit: the `4c3aa31` commit-log note, `step-06-ci.md`,
-  `phase-0-summary.md`, the "No network in tests" rename in `testing-and-gates.md`, the
-  phase-gate skill's step 4 change, and this file.
+- Nothing. Session handed off after the Phase 0 gate.
 
 ## Next
-- Phase 1: Import the foundations. Read the Phase 1 section of `docs/plan.md`; approach first.
-  Before Phase 1's restore, close the `DATABASE_URL` host+port guard; before the first parallel
-  split, decide the commit-log merge-conflict fix (both in Known issues).
+Phase 1: Import the foundations (`docs/plan.md`, Phase 1 and "What to import from the old
+project"). First step: a Phase 1 proposal, with nothing written before approval.
+
+Preconditions (from Known issues), in this order:
+1. **`DATABASE_URL` host+port guard, before the restore.** Today's 5432 guard covers only
+   `DATABASE_URL_TEST`. The guard must refuse the old database (localhost:5432) for the app's own
+   `DATABASE_URL` too, while allowing `postgres:5432` inside Docker, so it checks host and port
+   together.
+2. **Commit-log conflict fix, before any parallel split.** A single
+   `docs/explanations/phase-1/commit-log.md` will conflict when two worktrees both commit. Decide
+   the fix (e.g. one log file per commit) and merge it to `main` first.
+
+Phase 1 tasks (plan):
+- Import, one commit per piece with its tests and the old commit hash in the message: the price
+  pipeline (fetch, raw and adjusted prices, splits and dividends, upsert, ingestion logs), the
+  S&P 500 universe and snapshot table, the no-lookahead backtester, the significance test, and
+  the number checker (extract the Sacred Gate 2 logic from `verdict.py`, don't copy the file).
+  Each piece's tests pass in Fathom before anything builds on it.
+- Restore the 506-ticker price history (2010-01-04 to 2026-09-08) from the old `strategy_research`
+  database with `pg_dump -t` on the price and universe tables only (decision 0002), read-only on
+  the old side; then run the normal ingest to catch up the days since 2026-09-08.
+- Fix the zero-trade crash: a backtest with no trades returns a clean "no trades" result.
+- Add the nightly price job.
+- Parallel, per the plan's table: price pipeline import alongside backtester + significance test
+  import. One at a time: the database restore and migrations.
+
+Phase 1 "Done when": all imported tests pass; a query shows every S&P 500 ticker's latest price
+is from the last trading day; a backtest with zero trades returns a clean result.
 
 ## Gate results
 | Phase | Result | Date | Evidence |
@@ -108,7 +133,8 @@ Last updated: 2026-10-24 · by: Claude Code, Phase 0 session
 
 ## Servers currently up
 The full Compose stack, recreated from empty volumes by the Phase 0 cold-start gate run on
-2026-10-24 (checked with `make ps`, all healthy), left running:
+2026-10-24 (checked with `docker compose ps` at handoff, all four running and healthy), left
+running. Both databases are empty (no tables) since the cold start:
 - postgres (`postgres:16.14-bookworm`) on 127.0.0.1:5433
 - redis (`redis:7.4.11-alpine`) on 127.0.0.1:6380
 - api (`fathom-api`: uvicorn with reload, Python 3.13.16) on 127.0.0.1:8001
