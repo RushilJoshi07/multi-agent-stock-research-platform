@@ -1,6 +1,7 @@
 # Dependencies
 
-Applies to: every Python and npm dependency, both lockfiles, the Node and Python runtimes, and uv.
+Applies to: every Python and npm dependency, both lockfiles, the Node and Python runtimes, uv,
+and every GitHub Action used in `.github/workflows/`.
 Decision and rejected alternatives: `docs/decisions/0007-dependency-age-14-days.md`.
 
 ## The 14-day rule
@@ -14,6 +15,10 @@ Decision and rejected alternatives: `docs/decisions/0007-dependency-age-14-days.
 - Every proposal shows the publish date next to each pin.
 - A security fix younger than 14 days needs an explicit exception from the user, recorded in
   `docs/decisions/`.
+- GitHub Actions: each release must be on or before the same cutoff as the lockfiles. Pin every
+  action to a full commit SHA with the tag and release date in a comment
+  (`uses: owner/action@<sha> # vX.Y.Z, YYYY-MM-DD`), never a tag or branch. Confirm the SHA is
+  the commit the tag points to.
 - Docker base images are not covered unless the user extends the rule.
 
 ## How it's enforced
@@ -28,4 +33,7 @@ Decision and rejected alternatives: `docs/decisions/0007-dependency-age-14-days.
 ## Checking
 After any dependency change, run `uv run python scripts/check_dependency_age.py` and show its
 output. It looks up the publish date of every locked package and exits non-zero if any is past
-the cutoff or has no known date.
+the cutoff or has no known date. CI runs it in its own `dependency-age` job.
+
+The script does not read workflows. Action pins are checked by hand (GitHub API: release date,
+and the tag's commit SHA) whenever an action is added or bumped.

@@ -1,0 +1,97 @@
+# Fathom CI: backend tests, web checks, and the 14-day dependency rule.
+# No secrets; nothing here calls Bedrock, Finnhub, Alpaca, LangSmith or any paid API.
+# Every action is pinned to a full commit SHA, released on or before the dependency cutoff
+# 2026-10-06T23:59:59Z (.claude/rules/dependencies.md). The comment gives the tag and its
+# release date.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      # Same host ports as local (docs/decisions/0005), so the 5432 guard in tests/conftest.py
+      # needs no CI exception and the settings defaults work without an env block.
+      postgres:
+        image: postgres:16.14-bookworm
+        env:
+          POSTGRES_USER: fathom
+          POSTGRES_PASSWORD: change-me-local # .env.example placeholder, not a secret
+          # Service containers start before checkout, so docker/postgres/init/ can't run here.
+          POSTGRES_DB: fathom_test
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U fathom -d fathom_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7.4.11-alpine
+        ports:
+          - 6380:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, 2026-07-20
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0, 2026-09-21
+        with:
+          version: 0.12.23
+          # Published SHA-256 of uv-x86_64-unknown-linux-gnu.tar.gz for 0.12.23.
+          checksum: 9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6
+      # uv installs Python 3.13.16 from .python-version, as it does locally.
+      - run: uv sync --locked
+      - run: uv run ruff check
+      - run: uv run ruff format --check
+      # Same command as `make test`: addopts in pyproject.toml excludes gate and live tests and
+      # turns on pytest-socket (localhost only).
+      - run: uv run pytest
+
+  web:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, 2026-07-20
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0, 2026-07-14
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run test
+      - run: npm run build
+
+  # Kept apart from the test jobs: it needs PyPI and the npm registry, and pytest-socket
+  # stays in force for every test.
+  dependency-age:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1, 2026-07-20
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0, 2026-09-21
+        with:
+          version: 0.12.23
+          checksum: 9167d72b3319674b6303c4cbe071854bba13ebdf3d76b1a7cbdc175471fb66d6
+      - run: uv run --locked python scripts/check_dependency_age.py

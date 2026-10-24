@@ -79,6 +79,11 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   stayed at `~/.claude/plans/pasted-content-id-5a72-we-re-starting-reactive-dijkstra.md` and
   `plans/` was never created; that file existed before the setting, so this doesn't settle it.
   Check in a new session's first plan.
+  Update 2026-10-22 (step 6 session): still unsettled. No plan file was written anywhere this
+  session: `plans/` doesn't exist and `~/.claude/plans/` holds only the 2026-10-20 file above.
+  Claude got no Plan-mode instructions or plan-file path, so the session apparently never ran in
+  Plan mode. Next test: start a session in Plan mode, have Claude write a plan, then check
+  `plans/` and `~/.claude/plans/`.
 - `fsevents@2.3.3` (macOS file watcher, pulled in by the web tooling) has an install script that
   npm 11 didn't run because it isn't approved (`npm install-scripts approve`). Lint, typecheck,
   tests, build and the dev server all worked without it. Not approved; decide if file watching

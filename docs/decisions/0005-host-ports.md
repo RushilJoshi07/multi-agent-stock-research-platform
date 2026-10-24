@@ -21,5 +21,6 @@ only the host side changes.
   plus-one rule and won't clash with a Redis installed on the host later.
 
 ## Consequences
-`.env.example`, Compose and CLAUDE.md use these ports. CI uses the standard ports, since
-nothing else runs on the CI machine.
+`.env.example`, Compose and CLAUDE.md use these ports. CI uses the same host ports
+(5433 / 6380) for its Postgres and Redis service containers, so the 5432 guard in
+`tests/conftest.py` needs no CI exception (updated 2026-10-22, Phase 0 step 6).
