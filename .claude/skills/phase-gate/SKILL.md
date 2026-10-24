@@ -11,7 +11,9 @@ description: Run a phase's gate checks and report pass or fail with evidence. Us
    a written walkthrough step for the user. If a condition has no check, say so; don't mark it passed.
 3. Run `make gate PHASE=N` and capture the full output. Don't summarize away failures.
 4. CI: the user checks the GitHub Actions run for the pushed commit (gh is not installed).
-   Ask for the result; don't assume it.
+   First confirm the commit is on GitHub (`git fetch`, then `git status` says up to date with
+   `origin/main`), and tell the user the commit SHA to look for on the Actions page. Then ask
+   for the result; don't assume it.
 5. Report a table: condition, how checked, PASS / FAIL / NOT CHECKED, evidence (command and
    the relevant output lines). The gate passes only if every condition is PASS.
 6. On pass, with the user's approval, record the result, date and evidence in the

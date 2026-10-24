@@ -1,8 +1,8 @@
 # Fathom status
 
-Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
+Last updated: 2026-10-24 · by: Claude Code, Phase 0 session
 
-**Current phase:** 0 — Setup
+**Current phase:** 0 — Setup. Gate passed 2026-10-24; Phase 1 is next.
 
 ## Done
 - Phase 0 proposal approved with changes (2026-10-19).
@@ -34,31 +34,27 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   Commit `6578dd5`, pushed.
 - `.vscode/settings.json` committed with `python.terminal.useEnvFile: false`, so VS Code terminals
   never load `.env`. Commit `4aa17d5`, pushed.
+- Step 6: CI (`.github/workflows/ci.yml`): backend, web and dependency-age jobs; `contents: read`;
+  no secrets; actions pinned to commit SHAs under the 14-day rule (checkout v7.0.1, setup-uv
+  v10.2.0, setup-node v7.0.0). The 14-day rule now covers GitHub Actions; decision 0005's CI line
+  updated. Commit `4c3aa31`, pushed by the user with a token that has the `workflow` scope
+  (Claude's push was rejected without it). First CI run green.
+- Step 7: Phase 0 gate passed (see Gate results).
 
 ## In progress
-- Nothing. Session handed off after step 5.
+- Uncommitted, to ship with the next commit: the `4c3aa31` commit-log note, `step-06-ci.md`,
+  `phase-0-summary.md`, the "No network in tests" rename in `testing-and-gates.md`, the
+  phase-gate skill's step 4 change, and this file.
 
 ## Next
-- **Step 6: CI** (`.github/workflows/ci.yml`). Approach first; no code before approval.
-  - Look up the current major versions of the GitHub actions; don't use remembered ones.
-  - **backend job:**
-    - uv pinned to 0.12.23 through `setup-uv`;
-    - Python from `.python-version` (3.13.16);
-    - Postgres (`postgres:16.14-bookworm`) and Redis (`redis:7.4.11-alpine`) as service
-      containers mapped to host ports 5433 and 6380, so the 5432 guard needs no CI exception;
-    - `uv sync --locked`, ruff check and format, then `pytest -m "not gate and not live"` with
-      pytest-socket.
-  - **web job:** Node from `.nvmrc` (24.21.0), `npm ci`, then lint, typecheck, test and build.
-  - **dependency-age job:** a separate job that runs `scripts/check_dependency_age.py`, apart from
-    the test jobs, so pytest-socket stays in force for tests.
-  - No secrets; nothing in CI calls Bedrock, Finnhub, Alpaca or any paid API.
-  - Update decision 0005's CI line, which still says CI uses the standard ports.
-- Step 7: Phase 0 gate (`make gate PHASE=0` + CI green on `main`, checked by the user
-  on the Actions page).
+- Phase 1: Import the foundations. Read the Phase 1 section of `docs/plan.md`; approach first.
+  Before Phase 1's restore, close the `DATABASE_URL` host+port guard; before the first parallel
+  split, decide the commit-log merge-conflict fix (both in Known issues).
 
 ## Gate results
 | Phase | Result | Date | Evidence |
 | --- | --- | --- | --- |
+| 0 | PASS | 2026-10-24 | Cold start: read-only queries showed 0 tables (0 non-system relations) in `fathom` and `fathom_test` and 0 Redis keys; then `docker compose down -v` (approved once) removed all containers and both volumes. `make gate PHASE=0` from that empty state, on `4c3aa31`: 6 passed in 13.60s, "GATE CHECK: 6 gate tests ran, 0 deselected, 0 skipped", make exit 0; `/health` ok (postgres 16.14, redis ok), and `degraded` with Redis stopped. Postgres log: "running /docker-entrypoint-initdb.d/01-create-test-db.sql" / "CREATE DATABASE"; new volume created 2026-10-24T20:22:29Z; `make test` 7 passed against the recreated `fathom_test`. An earlier gate run the same day on the already-running stack also passed 6 of 6. CI on `4c3aa31` green: backend, web and dependency-age all success, confirmed by the user and by the GitHub API. Run: https://github.com/RushilJoshi07/multi-agent-stock-research-platform/actions/runs/40123000260 |
 
 ## Known issues
 - `verdict.py` in the old repo imports old charter/hypothesis/verdict models and
@@ -97,17 +93,22 @@ Last updated: 2026-10-22 · by: Claude Code, Phase 0 session
   unless the test is also marked `live`, and `live` stays behind `FATHOM_ALLOW_LIVE=1`.
 - The project skills (`explanation-writer`, `phase-gate`, `session-handoff`) were not available
   as skills in the session that created them ("Unknown skill"); they were followed from their
-  files instead. Unverified whether a new session loads them. Check at the next session start.
+  files instead. Resolved 2026-10-24: in the next session all three appeared in the skill list,
+  and `explanation-writer` (step 6 explainer, Phase 0 summary) and `phase-gate` (Phase 0 gate)
+  ran through the Skill tool. They load in a new session, not in the session that creates them.
 - The 5432 guard in `tests/conftest.py` covers `DATABASE_URL_TEST` only, not the app's own
   `DATABASE_URL`. If `.env` pointed `DATABASE_URL` at port 5432, the running API would connect to
   the old database. Close before Phase 1's restore. Inside Docker the API legitimately connects
   to `postgres:5432`, so the guard must check host and port together, not port alone.
+- The GitHub repo is public (GitHub API, 2026-10-24: `"private": false`). `docs/plan.md` Phase 0
+  says to create a private repo. Not changed; the user decides. Nothing secret is committed
+  (`.env` is ignored, CI has no secrets).
 - Tests print a `StarletteDeprecationWarning`: Starlette's test client wants `httpx2` instead of
   `httpx`. Tests pass; not acted on (it would add a dependency). Decide before it becomes an error.
 
 ## Servers currently up
-The full Compose stack (checked with `make ps` at handoff on 2026-10-22, all healthy, up about
-23 hours), left running:
+The full Compose stack, recreated from empty volumes by the Phase 0 cold-start gate run on
+2026-10-24 (checked with `make ps`, all healthy), left running:
 - postgres (`postgres:16.14-bookworm`) on 127.0.0.1:5433
 - redis (`redis:7.4.11-alpine`) on 127.0.0.1:6380
 - api (`fathom-api`: uvicorn with reload, Python 3.13.16) on 127.0.0.1:8001

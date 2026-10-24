@@ -73,3 +73,13 @@ setup-uv 0.12.23, Python and Node from their version files, service containers o
 and the separate dependency-age job.
 Why: STATUS.md is what the next session starts from.
 Non-obvious: this note is committed alone, so the hook's docs-only skip should write no new stub.
+
+## 4c3aa31 — Phase 0 step 6: CI workflow with SHA-pinned actions
+2026-10-24 · 5 files changed, 118 insertions(+), 4 deletions(-)
+Added .github/workflows/ci.yml: backend (Postgres/Redis services on 5433/6380, uv, ruff, pytest),
+web (npm ci, lint, typecheck, test, build) and dependency-age jobs; contents: read, no secrets.
+Why: Phase 0 is done only when CI passes, and CI must run the same commands as the Makefile.
+Non-obvious: actions are pinned to commit SHAs under the 14-day rule (setup-uv v10.2.0, setup-node
+v7.0.0, not the newest); fathom_test comes from POSTGRES_DB because service containers can't mount
+the init script; Claude's push was rejected because the PAT lacked the workflow scope, so the user
+pushed it with a new token that has it. The first CI run passed (all three jobs).

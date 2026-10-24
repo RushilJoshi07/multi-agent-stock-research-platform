@@ -14,9 +14,10 @@ Applies to: all tests, phase gates, CI.
 - `gate`: a phase gate test in `tests/gates/`. Run with `make gate PHASE=N`.
 - The default `make test` excludes both.
 
-## No network in CI
+## No network in tests
 CI has no secrets and runs pytest with pytest-socket (`--disable-socket`, localhost only).
 An accidental outbound call fails the test instead of spending money.
+The `dependency-age` job is the only CI job that uses the network, and it runs no tests.
 
 ## Phase gates
 - Each phase's "Done when" becomes a test in `tests/gates/` wherever possible, plus a written
