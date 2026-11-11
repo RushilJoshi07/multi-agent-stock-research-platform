@@ -381,3 +381,36 @@ def test_a_trace_with_no_result_is_rejected_not_a_crash():
 
 def test_a_stored_integer_still_validates():
     assert _errors_for_stored(1) == []
+
+
+# ---------------------------------------------------------------------------
+# Number parsing: ".65" is 0.65, "1,234" is one number
+# ---------------------------------------------------------------------------
+
+
+def test_a_leading_decimal_point_reads_as_a_fraction():
+    claims = [
+        Claim(statement="sharpe", tool_call_trace_id=101, metric="sharpe_ratio", value=0.6519)
+    ]
+    assert scan_for_unreferenced_numbers("Sharpe was .65.", claims, allowed=set()) == []
+    assert scan_for_unreferenced_numbers("Sharpe was .85.", claims, allowed=set()) == [
+        "narrative contains '.85', which matches no validated claim"
+    ]
+    assert scan_for_unreferenced_numbers("Sharpe was -.65.", claims, allowed=set()) == [
+        "narrative contains '-.65', which matches no validated claim"
+    ]
+
+
+def test_a_thousands_separator_reads_as_one_number():
+    claims = [Claim(statement="trades", tool_call_trace_id=101, metric="num_trades", value=1234)]
+    assert scan_for_unreferenced_numbers("It made 1,234 trades.", claims, allowed=set()) == []
+    assert scan_for_unreferenced_numbers("It made 1,234 trades.", [], allowed=set()) == [
+        "narrative contains '1,234', which matches no validated claim"
+    ]
+    assert scan_for_unreferenced_numbers("Equity hit 1,234,567.5 dollars.", [], {1234567.5}) == []
+
+
+def test_commas_that_are_not_thousands_groups_still_split():
+    """ "1,2,3" is a list, and "1,2345" is not a valid grouping, so neither becomes one number."""
+    assert scan_for_unreferenced_numbers("Windows 1,2,3 failed.", [], {1.0, 2.0, 3.0}) == []
+    assert scan_for_unreferenced_numbers("Values 1,2345.", [], {1.0, 2345.0}) == []

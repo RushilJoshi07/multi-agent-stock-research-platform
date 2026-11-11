@@ -31,7 +31,20 @@ from fact_check.models import Claim, FalsificationCondition
 _REL_TOLERANCE = 0.01
 _ABS_TOLERANCE = 0.01
 
-_NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
+# A number in prose. The integer part is either comma-grouped thousands ("1,234,567", only
+# when every group has exactly three digits and no digit follows) or plain digits; ".65" with
+# no integer part is also a number. A comma that isn't a valid grouping ("1,2,3", "1,2345")
+# splits the text into separate numbers, as before.
+_NUMBER_RE = re.compile(
+    r"[-+]?"
+    r"(?:(?:\d{1,3}(?:,\d{3})+(?!\d)|\d+)(?:\.\d+)?|\.\d+)"
+    r"(?:[eE][-+]?\d+)?"
+)
+
+
+def _to_float(token: str) -> float:
+    return float(token.replace(",", ""))
+
 
 # Characters a writer (or model) may use as a minus sign. _NUMBER_RE only knows ASCII "-", so
 # "−0.941" (U+2212) would be read as 0.941 and match a claim of +0.941: a flipped sign passing.
@@ -210,11 +223,11 @@ def scan_for_unreferenced_numbers(
     prediction = prediction.translate(_MINUS_LIKE)
     claimed = [c.value for c in claims]
     self_ref_letters = _self_reference_digit_letters(hypothesis_name)
-    prediction_numbers = {float(m.group(0)) for m in _NUMBER_RE.finditer(prediction)}
+    prediction_numbers = {_to_float(m.group(0)) for m in _NUMBER_RE.finditer(prediction)}
     orphan_from_prediction: dict[str, bool] = {}
     for match in _NUMBER_RE.finditer(narrative):
         token = match.group(0)
-        value = float(token)
+        value = _to_float(token)
         if any(_close(value, c) for c in claimed):
             continue
         if any(_close(value, a) for a in allowed):
