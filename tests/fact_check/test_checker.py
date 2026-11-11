@@ -287,3 +287,34 @@ def test_a_trace_that_recorded_nan_rejects_any_claim_on_it():
         ]
         errors = validate_claims(claims, traces)
         assert len(errors) == 1 and "recorded nan" in errors[0]
+
+
+# ---------------------------------------------------------------------------
+# Sign: a non-ASCII minus or dash must not be dropped (that would flip the sign)
+# ---------------------------------------------------------------------------
+
+_MINUS_LIKE = {
+    "minus sign U+2212": "−",
+    "en dash U+2013": "–",
+    "em dash U+2014": "—",
+    "figure dash U+2012": "‒",
+    "small hyphen-minus U+FE63": "﹣",
+    "fullwidth hyphen-minus U+FF0D": "－",
+}
+
+
+def test_a_non_ascii_minus_does_not_flip_the_sign():
+    claims = [
+        Claim(statement="oos sharpe", tool_call_trace_id=107, metric="sharpe_ratio", value=0.941)
+    ]
+    for name, dash in _MINUS_LIKE.items():
+        orphans = scan_for_unreferenced_numbers(f"Sharpe of {dash}0.941.", claims, allowed=set())
+        assert orphans == ["narrative contains '-0.941', which matches no validated claim"], name
+
+
+def test_a_non_ascii_minus_on_a_negative_claim_matches_it():
+    claims = [
+        Claim(statement="oos sharpe", tool_call_trace_id=103, metric="sharpe_ratio", value=-1.51)
+    ]
+    for name, dash in _MINUS_LIKE.items():
+        assert scan_for_unreferenced_numbers(f"Sharpe of {dash}1.51.", claims, set()) == [], name

@@ -31,6 +31,21 @@ _ABS_TOLERANCE = 0.01
 
 _NUMBER_RE = re.compile(r"[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 
+# Characters a writer (or model) may use as a minus sign. _NUMBER_RE only knows ASCII "-", so
+# "−0.941" (U+2212) would be read as 0.941 and match a claim of +0.941: a flipped sign passing.
+# Each is mapped one-for-one to "-" before parsing, so match positions don't shift. Fails closed:
+# an en dash used as a range ("2019–2021") now reads as -2021, as an ASCII hyphen always did.
+_MINUS_LIKE = str.maketrans(
+    {
+        "−": "-",  # minus sign
+        "‒": "-",  # figure dash
+        "–": "-",  # en dash
+        "—": "-",  # em dash
+        "﹣": "-",  # small hyphen-minus
+        "－": "-",  # fullwidth hyphen-minus
+    }
+)
+
 # A hypothesis name often embeds a digit as a unit abbreviation ("52W_High_Proximity_Momentum"),
 # and the model naturally echoes it in prose ("the 52-week-high strategy"). That "52" refers to
 # the name, not a new number, and must not be flagged; a fabricated "52% win rate" must be.
@@ -165,6 +180,8 @@ def scan_for_unreferenced_numbers(
     pre-registered bar. A real run in the old project cited the prediction's informal "> 0.5"
     as the threshold when the bar was 0.0. The number is rejected either way.
     """
+    narrative = narrative.translate(_MINUS_LIKE)
+    prediction = prediction.translate(_MINUS_LIKE)
     claimed = [c.value for c in claims]
     self_ref_letters = _self_reference_digit_letters(hypothesis_name)
     prediction_numbers = {float(m.group(0)) for m in _NUMBER_RE.finditer(prediction)}
