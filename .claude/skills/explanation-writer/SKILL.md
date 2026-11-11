@@ -14,7 +14,7 @@ months from now, with no other context. Teach, don't summarize.
 
 ## Three levels
 1. **Commit note** (3–6 lines per commit): written in-session when the commit-log hook asks,
-   in `docs/explanations/phase-N/commit-log.md`. Not this skill's job.
+   in `docs/explanations/phase-N/commits/<short-sha>.md`. Not this skill's job.
 2. **Step explainer** (per working component): `docs/explanations/phase-N/step-<NN>-<component>.md`,
    e.g. `docs/explanations/phase-2/step-03-edgar-client.md`. A component is the smallest piece
    that works on its own: if someone could ask "walk me through how you handled X", X is a

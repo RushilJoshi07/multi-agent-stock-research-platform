@@ -1,6 +1,7 @@
 # 0004 · Commit-log note: deterministic hook stub, written by the same session
 
-Date: 2026-10-19 · Status: approved
+Date: 2026-10-19 · Status: approved, amended by [0008](0008-commit-log-one-file-per-commit.md)
+(one file per commit, repo found from the hook's cwd)
 
 ## Context
 The plan wants a short commit-log note after every commit, triggered by a hook in

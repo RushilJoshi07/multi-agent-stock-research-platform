@@ -22,8 +22,8 @@ Read this file, `docs/STATUS.md`, the current phase of `docs/plan.md`, and `git 
 - Working first: no polish, extra docs or new features until the core path works end to end.
 - Step explainers (after every working component) and phase summaries (after every phase) are
   written with the explanation-writer skill into `docs/explanations/phase-N/`.
-- The 3–6 line commit-log note goes in `docs/explanations/phase-N/commit-log.md` when the hook
-  asks (the hook writes the stub after each commit; you fill it in).
+- The 3–6 line commit-log note goes in `docs/explanations/phase-N/commits/<short-sha>.md` when
+  the hook asks (the hook writes the stub after each commit; you fill it in). Decision 0008.
 - New ideas go to `docs/ideas.md` until v1 passes its gate.
 
 ## Sacred gates (tested, never assumed, never weakened)
