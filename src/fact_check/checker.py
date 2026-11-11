@@ -17,6 +17,8 @@ Both return a list of human-readable errors; an empty list means everything chec
 
 from __future__ import annotations
 
+import math
+import numbers
 import re
 from collections.abc import Iterable, Mapping
 from typing import Any, Protocol
@@ -141,11 +143,35 @@ def validate_claims(claims: Iterable[Claim], traces: Iterable[SourceRecord]) -> 
         if trace.is_error:
             errors.append(f"claim {i} references trace {trace.id}, which recorded an error")
             continue
-        actual = trace.result.get(claim.metric)
-        if actual is None:
+        if not isinstance(trace.result, Mapping):
+            errors.append(
+                f"claim {i} references trace {trace.id}, which has no result to check against"
+            )
+            continue
+        if claim.metric not in trace.result:
             errors.append(
                 f"claim {i} cites metric {claim.metric!r}, absent from trace {trace.id} "
                 f"({trace.tool_name})"
+            )
+            continue
+        actual = trace.result[claim.metric]
+        if actual is None:
+            errors.append(
+                f"claim {i} cites metric {claim.metric!r}, but trace {trace.id} recorded "
+                "no value (null) for it"
+            )
+            continue
+        # bool is a subclass of int in Python, so True would otherwise count as 1.0.
+        if isinstance(actual, bool) or not isinstance(actual, numbers.Real):
+            errors.append(
+                f"claim {i} cites metric {claim.metric!r}, but trace {trace.id} recorded "
+                f"{actual!r} ({type(actual).__name__}), which is not a number"
+            )
+            continue
+        if not math.isfinite(actual):
+            errors.append(
+                f"claim {i} cites metric {claim.metric!r}, but trace {trace.id} recorded "
+                f"{actual}, which is not a finite number"
             )
             continue
         if not _close(claim.value, float(actual)):

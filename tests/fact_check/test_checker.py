@@ -318,3 +318,66 @@ def test_a_non_ascii_minus_on_a_negative_claim_matches_it():
     ]
     for name, dash in _MINUS_LIKE.items():
         assert scan_for_unreferenced_numbers(f"Sharpe of {dash}1.51.", claims, set()) == [], name
+
+
+# ---------------------------------------------------------------------------
+# Unusual stored values: rejected with a correct message, never a crash or a silent 1.0
+# ---------------------------------------------------------------------------
+
+
+def _claim_on(value: float = 1.0) -> list[Claim]:
+    return [Claim(statement="x", tool_call_trace_id=400, metric="sharpe_ratio", value=value)]
+
+
+def _errors_for_stored(stored: Any) -> list[str]:
+    return validate_claims(_claim_on(), [_FakeTrace(400, "run_backtest", {"sharpe_ratio": stored})])
+
+
+def test_a_stored_string_is_rejected_not_a_crash():
+    for stored in ("abc", "1.0"):
+        errors = _errors_for_stored(stored)
+        assert errors == [
+            f"claim 0 cites metric 'sharpe_ratio', but trace 400 recorded {stored!r} "
+            "(str), which is not a number"
+        ]
+
+
+def test_a_stored_boolean_is_rejected_not_counted_as_one():
+    errors = _errors_for_stored(True)
+    assert errors == [
+        "claim 0 cites metric 'sharpe_ratio', but trace 400 recorded True (bool), "
+        "which is not a number"
+    ]
+
+
+def test_a_stored_list_or_dict_is_rejected_not_a_crash():
+    for stored in ([1.0], {"v": 1.0}):
+        errors = _errors_for_stored(stored)
+        assert len(errors) == 1 and "which is not a number" in errors[0]
+
+
+def test_a_stored_null_says_null_not_absent():
+    """A no-trades backtest stores sharpe_ratio=None (Phase 1 step 6b). The metric is present
+    with no value, which is different from a metric the trace never had."""
+    errors = _errors_for_stored(None)
+    assert errors == [
+        "claim 0 cites metric 'sharpe_ratio', but trace 400 recorded no value (null) for it"
+    ]
+
+
+def test_a_stored_infinity_is_rejected():
+    for stored in (math.inf, -math.inf):
+        errors = validate_claims(
+            _claim_on(stored), [_FakeTrace(400, "run_backtest", {"sharpe_ratio": stored})]
+        )
+        assert len(errors) == 1 and "not a finite number" in errors[0]
+
+
+def test_a_trace_with_no_result_is_rejected_not_a_crash():
+    trace = _FakeTrace(400, "run_backtest", None)  # type: ignore[arg-type]
+    errors = validate_claims(_claim_on(), [trace])
+    assert errors == ["claim 0 references trace 400, which has no result to check against"]
+
+
+def test_a_stored_integer_still_validates():
+    assert _errors_for_stored(1) == []
