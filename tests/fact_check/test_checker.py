@@ -1,0 +1,289 @@
+"""Tests for the number checker (Sacred Gate 2).
+
+Ported from the old project's tests/agentic_core/test_verdict.py at 73ae58e: the 18 tests that
+exercise validate_claims and scan_for_unreferenced_numbers. The 15 tests of the verdict logic
+left behind (decide_status, the significance threshold, the mandatory caveats) were not ported.
+The two NaN tests at the end are new.
+
+Pure tests: no database, no network.
+"""
+
+import math
+from dataclasses import dataclass, field
+from typing import Any
+
+from fact_check import (
+    Claim,
+    FalsificationCondition,
+    scan_for_unreferenced_numbers,
+    validate_claims,
+)
+
+
+@dataclass(frozen=True)
+class _FakeTrace:
+    id: int
+    tool_name: str
+    result: dict[str, Any] = field(default_factory=dict)
+    is_error: bool = False
+
+
+# Real numbers from the old project's database: the walk-forward run of the
+# LowVol_AAPL_ATR_MeanReversion hypothesis (study design a27b937b-8ab0-4b9e-abc1-0172b0dffb71),
+# run against cached AAPL data on 2026-08-23. Window 0 is in-sample; windows 1-3 are the
+# out-of-sample folds. Each window has a backtest trace and a significance trace.
+# (window, backtest id, significance id, sharpe_ratio, num_trades, p_value)
+_REAL_WINDOWS = [
+    (0, 101, 102, 0.771, 73, 0.432),
+    (1, 103, 104, -1.510, 4, 1.000),
+    (2, 105, 106, 0.545, 6, 0.794),
+    (3, 107, 108, 0.941, 7, 0.312),
+]
+
+
+def _real_traces() -> list[_FakeTrace]:
+    out = []
+    for _, bt_id, sig_id, sharpe, trades, p in _REAL_WINDOWS:
+        out.append(
+            _FakeTrace(bt_id, "run_backtest", {"sharpe_ratio": sharpe, "num_trades": trades})
+        )
+        out.append(
+            _FakeTrace(sig_id, "test_significance", {"p_value": p, "observed_sharpe": sharpe})
+        )
+    return out
+
+
+_NAME_52W = "52W_High_Proximity_Momentum_NVDA_MSFT"
+
+
+def _sharpe_claim() -> list[Claim]:
+    return [
+        Claim(
+            statement="sharpe was -0.13", tool_call_trace_id=15, metric="sharpe_ratio", value=-0.13
+        )
+    ]
+
+
+# ---------------------------------------------------------------------------
+# validate_claims: five ways to try to fabricate
+# ---------------------------------------------------------------------------
+
+
+def test_a_claim_matching_its_trace_validates():
+    claims = [
+        Claim(
+            statement="in-sample sharpe was 0.771",
+            tool_call_trace_id=101,
+            metric="sharpe_ratio",
+            value=0.771,
+        )
+    ]
+    assert validate_claims(claims, _real_traces()) == []
+
+
+def test_a_claim_with_a_dangling_reference_is_rejected():
+    claims = [
+        Claim(
+            statement="sharpe was 0.771", tool_call_trace_id=999, metric="sharpe_ratio", value=0.771
+        )
+    ]
+    errors = validate_claims(claims, _real_traces())
+    assert errors and "does not exist" in errors[0]
+
+
+def test_a_claim_whose_value_does_not_match_its_trace_is_rejected():
+    """The core fabrication case: a real reference, a real metric, an invented number."""
+    claims = [
+        Claim(statement="sharpe was 2.5", tool_call_trace_id=101, metric="sharpe_ratio", value=2.5)
+    ]
+    errors = validate_claims(claims, _real_traces())
+    assert errors and "recorded" in errors[0]
+
+
+def test_a_claim_citing_a_metric_absent_from_its_trace_is_rejected():
+    """Why Claim carries `metric`: without it, a sharpe claim could validate against a p_value
+    that happened to be close."""
+    claims = [Claim(statement="p was 0.771", tool_call_trace_id=101, metric="p_value", value=0.771)]
+    errors = validate_claims(claims, _real_traces())
+    assert errors and "absent from trace" in errors[0]
+
+
+def test_a_claim_referencing_another_studys_trace_is_rejected():
+    """Only the given run's traces count, so a real trace id from another run resolves to
+    nothing."""
+    other_study = [_FakeTrace(777, "run_backtest", {"sharpe_ratio": 3.0, "num_trades": 400})]
+    claims = [
+        Claim(statement="sharpe was 3.0", tool_call_trace_id=777, metric="sharpe_ratio", value=3.0)
+    ]
+    assert validate_claims(claims, other_study) == []  # valid in its own run
+    errors = validate_claims(claims, _real_traces())  # not in this one
+    assert errors and "does not exist" in errors[0]
+
+
+def test_a_claim_referencing_an_errored_trace_is_rejected():
+    traces = [_FakeTrace(200, "run_backtest", {"error": "boom"}, is_error=True)]
+    claims = [
+        Claim(statement="sharpe was 1.0", tool_call_trace_id=200, metric="sharpe_ratio", value=1.0)
+    ]
+    errors = validate_claims(claims, traces)
+    assert errors and "recorded an error" in errors[0]
+
+
+# ---------------------------------------------------------------------------
+# scan_for_unreferenced_numbers: the hole validate_claims alone leaves open
+# ---------------------------------------------------------------------------
+
+
+def test_a_fabricated_number_in_the_prose_is_caught_despite_clean_claims():
+    claims = [
+        Claim(
+            statement="sharpe was 0.771", tool_call_trace_id=101, metric="sharpe_ratio", value=0.771
+        )
+    ]
+    narrative = "In-sample sharpe was 0.771, and the strategy returned 42.7% annually."
+    orphans = scan_for_unreferenced_numbers(narrative, claims, allowed=set())
+    assert any("42.7" in o for o in orphans)
+
+
+def test_claimed_numbers_pass_the_scan():
+    claims = [
+        Claim(
+            statement="sharpe was 0.771", tool_call_trace_id=101, metric="sharpe_ratio", value=0.771
+        )
+    ]
+    assert scan_for_unreferenced_numbers("Sharpe was 0.771.", claims, allowed=set()) == []
+
+
+def test_structural_numbers_pass_the_scan():
+    assert (
+        scan_for_unreferenced_numbers("This is hypothesis 1 of 4 windows.", [], allowed={1.0, 4.0})
+        == []
+    )
+
+
+def test_rounding_is_tolerated_but_a_different_number_is_not():
+    claims = [
+        Claim(statement="sharpe", tool_call_trace_id=101, metric="sharpe_ratio", value=0.6519)
+    ]
+    assert scan_for_unreferenced_numbers("Sharpe was 0.65.", claims, allowed=set()) == []
+    assert scan_for_unreferenced_numbers("Sharpe was 0.85.", claims, allowed=set()) != []
+
+
+def test_narrative_echoing_the_hypothesis_name_is_not_flagged():
+    """Found live in the old project: "52" in "the 52-week-high strategy" echoes the name
+    52W_High_..., not a new number needing a source."""
+    narrative = "The 52-week-high proximity momentum strategy failed, with a Sharpe of -0.13."
+    orphans = scan_for_unreferenced_numbers(
+        narrative, _sharpe_claim(), allowed=set(), hypothesis_name=_NAME_52W
+    )
+    assert orphans == []
+
+
+def test_a_fabricated_number_sharing_the_hypothesis_name_digit_is_still_caught():
+    """The self-reference exemption is per occurrence: a fabricated "52%" elsewhere is flagged."""
+    narrative = "The 52-week-high proximity strategy failed, despite a fabricated 52% win rate."
+    orphans = scan_for_unreferenced_numbers(
+        narrative, _sharpe_claim(), allowed=set(), hypothesis_name=_NAME_52W
+    )
+    assert any("52" in o for o in orphans)
+
+
+def test_a_same_first_letter_word_does_not_count_as_a_self_reference():
+    """ "winning" starts with the same "w" as "52W" but isn't a time-unit word."""
+    narrative = "The strategy closed 52 winning trades, with a Sharpe of -0.13."
+    orphans = scan_for_unreferenced_numbers(
+        narrative, _sharpe_claim(), allowed=set(), hypothesis_name=_NAME_52W
+    )
+    assert any("52" in o for o in orphans)
+
+
+def test_a_number_followed_by_a_longer_word_starting_with_a_unit_word_is_not_a_self_reference():
+    """ "weekend" and "weeklong" start with "week"; the match is on the whole word."""
+    narrative = (
+        "The strategy gained 52 weekend momentum and a fabricated 52weeklong "
+        "rally, with a real Sharpe of -0.13."
+    )
+    orphans = scan_for_unreferenced_numbers(
+        narrative, _sharpe_claim(), allowed=set(), hypothesis_name=_NAME_52W
+    )
+    assert any("52" in o for o in orphans)
+
+
+def test_a_capitalized_self_reference_is_still_recognized():
+    narrative = "52-Week-high proximity failed early. Sharpe was -0.13."
+    orphans = scan_for_unreferenced_numbers(
+        narrative, _sharpe_claim(), allowed=set(), hypothesis_name=_NAME_52W
+    )
+    assert orphans == []
+
+
+def test_a_number_echoing_the_prediction_as_the_bar_gets_a_diagnostic_hint():
+    """Found live in the old project: the model called the prediction's informal "> 0.5" the
+    required threshold when the real bar was sharpe_ratio less_than 0.0. Still rejected; the
+    message names the real bar."""
+    claims = [
+        Claim(statement="oos sharpe", tool_call_trace_id=9, metric="sharpe_ratio", value=0.1527)
+    ]
+    narrative = (
+        "The out-of-sample Sharpe collapsed to 0.1527, well below the required threshold of 0.5."
+    )
+    condition = FalsificationCondition(metric="sharpe_ratio", comparison="less_than", threshold=0.0)
+    errors = scan_for_unreferenced_numbers(
+        narrative,
+        claims,
+        allowed={0.0},
+        prediction="will produce a positive Sharpe ratio (> 0.5) out-of-sample",
+        condition=condition,
+    )
+    assert len(errors) == 1
+    assert "0.5" in errors[0]
+    assert "pre-testing prediction" in errors[0]
+    assert "sharpe_ratio less_than 0.0" in errors[0]
+
+
+def test_the_hint_is_omitted_when_no_condition_is_given():
+    claims: list[Claim] = []
+    narrative = "The strategy returned a Sharpe of 0.5, matching nothing on file."
+    errors = scan_for_unreferenced_numbers(
+        narrative, claims, allowed=set(), prediction="will beat a Sharpe of 0.5"
+    )
+    assert errors == ["narrative contains '0.5', which matches no validated claim"]
+
+
+def test_the_hint_does_not_attach_to_a_number_absent_from_the_prediction():
+    claims: list[Claim] = []
+    condition = FalsificationCondition(metric="sharpe_ratio", comparison="less_than", threshold=0.0)
+    narrative = "The strategy posted a fabricated 42.7% annual return."
+    errors = scan_for_unreferenced_numbers(
+        narrative,
+        claims,
+        allowed=set(),
+        prediction="will produce a positive Sharpe ratio (> 0.5) out-of-sample",
+        condition=condition,
+    )
+    assert len(errors) == 1
+    assert "42.7" in errors[0]
+    assert "pre-testing prediction" not in errors[0]
+
+
+# ---------------------------------------------------------------------------
+# New: NaN fails closed (the old _fails_bar treated NaN as "not falsified"; not carried over)
+# ---------------------------------------------------------------------------
+
+
+def test_a_nan_claim_value_is_rejected():
+    claims = [
+        Claim(statement="sharpe", tool_call_trace_id=101, metric="sharpe_ratio", value=math.nan)
+    ]
+    errors = validate_claims(claims, _real_traces())
+    assert len(errors) == 1 and "recorded 0.771" in errors[0]
+
+
+def test_a_trace_that_recorded_nan_rejects_any_claim_on_it():
+    traces = [_FakeTrace(300, "run_backtest", {"sharpe_ratio": math.nan})]
+    for value in (0.0, 1.0, math.nan):
+        claims = [
+            Claim(statement="sharpe", tool_call_trace_id=300, metric="sharpe_ratio", value=value)
+        ]
+        errors = validate_claims(claims, traces)
+        assert len(errors) == 1 and "recorded nan" in errors[0]
