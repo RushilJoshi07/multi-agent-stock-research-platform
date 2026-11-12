@@ -20,7 +20,7 @@ from __future__ import annotations
 import math
 import numbers
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Iterator, Mapping
 from typing import Any, Protocol
 
 from fact_check.models import Claim, FalsificationCondition
@@ -48,6 +48,31 @@ _NUMBER_RE = re.compile(
 
 def _to_float(token: str) -> float:
     return float(token.replace(",", ""))
+
+
+def _is_spaced_minus(text: str, start: int) -> bool:
+    """True if an unsigned number starting at `start` is preceded by a minus and one space
+    ("Sharpe of - 0.941"), which `_NUMBER_RE` alone would read as +0.941. Fails closed, with two
+    exceptions where the dash is not a sign:
+    - a list bullet: the dash is the first non-space character on its line ("- 52 trades");
+    - subtraction: the last non-space character before the dash is a digit ("3 - 0.941").
+    """
+    if start < 2 or text[start - 2 : start] != "- ":
+        return False
+    dash = start - 2
+    line_start = text.rfind("\n", 0, dash) + 1
+    before = text[line_start:dash].rstrip(" \t")
+    return before != "" and not before[-1].isdigit()
+
+
+def _numbers_in(text: str) -> Iterator[tuple[str, float, int]]:
+    """Each number in `text` as (token, value, end position). Text must already have minus-like
+    characters mapped to "-". A spaced minus is folded into the token and value ("-0.941")."""
+    for match in _NUMBER_RE.finditer(text):
+        token = match.group(0)
+        if token[0] not in "+-" and _is_spaced_minus(text, match.start()):
+            token = "-" + token
+        yield token, _to_float(token), match.end()
 
 
 # Characters a writer (or model) may use as a minus sign. _NUMBER_RE only knows ASCII "-", so
@@ -227,17 +252,15 @@ def scan_for_unreferenced_numbers(
     prediction = prediction.translate(_MINUS_LIKE)
     claimed = [c.value for c in claims]
     self_ref_letters = _self_reference_digit_letters(hypothesis_name)
-    prediction_numbers = {_to_float(m.group(0)) for m in _NUMBER_RE.finditer(prediction)}
+    prediction_numbers = {value for _, value, _ in _numbers_in(prediction)}
     orphan_from_prediction: dict[str, bool] = {}
-    for match in _NUMBER_RE.finditer(narrative):
-        token = match.group(0)
-        value = _to_float(token)
+    for token, value, end in _numbers_in(narrative):
         if any(_close(value, c) for c in claimed):
             continue
         if any(_close(value, a) for a in allowed):
             continue
         letter = self_ref_letters.get(value)
-        if letter is not None and _is_self_reference(narrative, match.end(), letter):
+        if letter is not None and _is_self_reference(narrative, end, letter):
             continue
         orphan_from_prediction[token] = orphan_from_prediction.get(token, False) or any(
             _close(value, p) for p in prediction_numbers

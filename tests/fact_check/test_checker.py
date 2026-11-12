@@ -442,3 +442,32 @@ def test_float_noise_is_not_a_mismatch():
     assert _claim_vs_stored("total_return_pct", 0.0, 0.0) == []
     assert _claim_vs_stored("sharpe_ratio", 1.0, 1.0 + 1e-12) == []
     assert _claim_vs_stored("sharpe_ratio", 1.0, 1.0 + 1e-6) != []
+
+
+# ---------------------------------------------------------------------------
+# A minus followed by one space: a sign, unless it's subtraction or a list bullet
+# ---------------------------------------------------------------------------
+
+
+def _sharpe(value: float) -> list[Claim]:
+    return [Claim(statement="x", tool_call_trace_id=107, metric="sharpe_ratio", value=value)]
+
+
+def test_a_spaced_minus_does_not_flip_the_sign():
+    for dash in ("-", "−", "–"):
+        orphans = scan_for_unreferenced_numbers(f"Sharpe of {dash} 0.941.", _sharpe(0.941), set())
+        assert orphans == ["narrative contains '-0.941', which matches no validated claim"], dash
+
+
+def test_a_spaced_minus_on_a_negative_claim_matches_it():
+    assert scan_for_unreferenced_numbers("Sharpe of - 1.51.", _sharpe(-1.51), set()) == []
+
+
+def test_a_list_bullet_is_not_a_minus_sign():
+    trades = [Claim(statement="x", tool_call_trace_id=101, metric="num_trades", value=52)]
+    for narrative in ("- 52 trades", "Summary:\n  - 52 trades\n- 52 trades again"):
+        assert scan_for_unreferenced_numbers(narrative, trades, set()) == [], narrative
+
+
+def test_subtraction_is_not_a_negative_number():
+    assert scan_for_unreferenced_numbers("3 - 0.941", _sharpe(0.941), {3.0}) == []
