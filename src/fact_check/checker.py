@@ -25,8 +25,12 @@ from typing import Any, Protocol
 
 from fact_check.models import Claim, FalsificationCondition
 
-# Tolerance for matching a claimed number against its source. Generous enough that a model
-# rounding 0.6519 to 0.65 still validates, tight enough that a different number does not.
+# A structured claim points at a stored source, so its value must equal the stored value. The
+# only slack is float noise (0.1 + 0.2 vs 0.3), as a relative tolerance. No rounding.
+_CLAIM_REL_TOLERANCE = 1e-9
+
+# Tolerance for matching a number in the prose. Generous enough that a model rounding 0.6519 to
+# 0.65 still passes, tight enough that a different number does not.
 # NaN never matches anything (every comparison with NaN is False), so it fails closed.
 _REL_TOLERANCE = 0.01
 _ABS_TOLERANCE = 0.01
@@ -187,7 +191,7 @@ def validate_claims(claims: Iterable[Claim], traces: Iterable[SourceRecord]) -> 
                 f"{actual}, which is not a finite number"
             )
             continue
-        if not _close(claim.value, float(actual)):
+        if not math.isclose(claim.value, actual, rel_tol=_CLAIM_REL_TOLERANCE, abs_tol=0.0):
             errors.append(
                 f"claim {i} states {claim.metric}={claim.value}, but trace {trace.id} "
                 f"recorded {actual}"

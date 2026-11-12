@@ -414,3 +414,31 @@ def test_commas_that_are_not_thousands_groups_still_split():
     """ "1,2,3" is a list, and "1,2345" is not a valid grouping, so neither becomes one number."""
     assert scan_for_unreferenced_numbers("Windows 1,2,3 failed.", [], {1.0, 2.0, 3.0}) == []
     assert scan_for_unreferenced_numbers("Values 1,2345.", [], {1.0, 2345.0}) == []
+
+
+# ---------------------------------------------------------------------------
+# A structured claim must equal its stored value exactly (float noise only, rel 1e-9)
+# ---------------------------------------------------------------------------
+
+
+def _claim_vs_stored(metric: str, claimed: float, stored: float) -> list[str]:
+    claims = [Claim(statement="x", tool_call_trace_id=500, metric=metric, value=claimed)]
+    return validate_claims(claims, [_FakeTrace(500, "test_significance", {metric: stored})])
+
+
+def test_a_rounded_claim_is_rejected():
+    assert _claim_vs_stored("sharpe_ratio", 0.77, 0.771) != []
+    assert _claim_vs_stored("sharpe_ratio", 0.65, 0.6519) != []
+
+
+def test_a_p_value_cannot_cross_the_line_within_the_old_tolerance():
+    """Under the old flat 0.01 tolerance both of these passed."""
+    assert _claim_vs_stored("p_value", 0.045, 0.054) != []
+    assert _claim_vs_stored("p_value", 0.001, 0.009) != []
+
+
+def test_float_noise_is_not_a_mismatch():
+    assert _claim_vs_stored("total_return_pct", 0.3, 0.1 + 0.2) == []
+    assert _claim_vs_stored("total_return_pct", 0.0, 0.0) == []
+    assert _claim_vs_stored("sharpe_ratio", 1.0, 1.0 + 1e-12) == []
+    assert _claim_vs_stored("sharpe_ratio", 1.0, 1.0 + 1e-6) != []
